@@ -16,13 +16,13 @@ export class CleanupService {
 	) {
 	}
 
-	public async removeUser(user: IUser ) {
+	public async removeUser(user: IUser) {
 		return this.userModel.deleteOne({email: user.email});
 	}
 
 }
 
-const registerUserPayload :IUser= {
+const registerUserPayload: IUser = {
 	email: 'testuser@test.com',
 	password: 'Test',
 	company: 'Test',
@@ -67,8 +67,6 @@ describe('SSO Module', () => {
 	});
 
 
-
-
 	describe('SSO Controller', () => {
 		describe('Registration', () => {
 			describe('Register User', () => {
@@ -88,17 +86,6 @@ describe('SSO Module', () => {
 						await cleanupService.removeUser(registerUserPayload);
 					});
 
-					describe('Login Fail', () => {
-						it('should fail with 401 Unauthorized', () => {
-							return request(httpApp.getHttpServer())
-								.post('/v1/sso/login')
-								.send({email: registerUserPayload.email, password: registerUserPayload.password.toUpperCase()})
-								.set('Accept', 'application/json')
-								.set('Content-Type', 'application/json')
-								.expect('Content-Type', /json/)
-								.expect(401);
-						});
-					});
 					describe('Login Success', () => {
 						it('should respond 200 with jwtAccessToken', (done) => {
 							return request(httpApp.getHttpServer())
@@ -108,6 +95,7 @@ describe('SSO Module', () => {
 								.expect((res) => 'jwtAccessToken' in res.body)
 								.expect(200)
 								.end((err, res) => {
+									console.log(res.body)
 									if (err) return done(err);
 									return done();
 								});
@@ -115,23 +103,6 @@ describe('SSO Module', () => {
 					});
 				});
 			});
-
-
 		});
-
-
-		describe('User Info', () => {
-			it('should fail with 401 Unauthorized', async () => {
-				await request(httpApp.getHttpServer())
-					.get('/v1/sso/info')
-					.set('Accept', 'application/json')
-					.expect('Content-Type', /json/)
-					.expect(401);
-			});
-		});
-
-
 	});
-
-
 });
