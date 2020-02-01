@@ -1,25 +1,61 @@
+import { User, } from '@mm-mono/api/models/user.model';
 import { IUser } from '@mm-mono/api/objects/IUser';
-import { INestApplication } from '@nestjs/common';
+import { HttpStatus, INestApplication, Injectable } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ModelType } from '@typegoose/typegoose/lib/types';
+import { InjectModel, TypegooseModule } from 'nestjs-typegoose';
 import * as request from 'supertest';
 import { DefaultTestingModule } from '../../../tests/test-modules';
-import { SSOModule } from './index';
+import { SsoController } from './sso.controller';
 import { SsoService } from './sso.service';
+
+@Injectable()
+export class CleanupService {
+	constructor(
+		@InjectModel(User) private readonly userModel: ModelType<User>,
+	) {
+	}
+
+	public async removeUser(user: IUser ) {
+		return this.userModel.deleteOne({email: user.email});
+	}
+
+}
+
+const registerUserPayload :IUser= {
+	email: 'testuser@test.com',
+	password: 'Test',
+	company: 'Test',
+	firstName: 'Test',
+	lastName: 'Test',
+	middleName: 'Test',
+	// @ts-ignore
+	passwordConfirm: 'Test',
+	phone1: '4237878243783'
+};
+console.log(JSON.stringify(registerUserPayload));
 
 describe('SSO Module', () => {
 	let ssoModule: TestingModule;
 	let httpApp: INestApplication;
-	let service: SsoService;
+	// let service: SsoService;
+	let cleanupService: CleanupService;
 	let user: IUser;
 
 	beforeAll(async () => {
 		ssoModule = await Test.createTestingModule({
+
 			imports: [
 				DefaultTestingModule,
-				SSOModule,
-
+				TypegooseModule.forFeature([User]),
 			],
-			providers: []
+			controllers: [
+				SsoController
+			],
+			providers: [
+				SsoService,
+				CleanupService
+			]
 		}).compile();
 
 
@@ -27,40 +63,75 @@ describe('SSO Module', () => {
 		httpApp.setGlobalPrefix('v1');
 		httpApp.enableCors();
 		await httpApp.init();
-		service = ssoModule.get<SsoService>(SsoService);
+		cleanupService = ssoModule.get<CleanupService>(CleanupService);
 	});
 
 
 
 
 	describe('SSO Controller', () => {
-		describe('Login.Fail', () => {
-			it('should fail with 401 Unauthorized', (done) => {
-				return request(httpApp.getHttpServer())
-					.post('/v1/sso/login')
-					.send({email: 'jakeihasz@minnich-mfg.com', password: 'jake'})
+		describe('Registration', () => {
+			describe('Register User', () => {
+
+
+				it('should succeed with HTTP 201 Created', () => {
+					return request(httpApp.getHttpServer())
+						.post('/v1/sso/register')
+						.send(registerUserPayload)
+						.set('Accept', 'application/json')
+						.expect(HttpStatus.CREATED);
+				});
+
+				describe('Login After Registration', () => {
+
+					afterAll(async () => {
+						await cleanupService.removeUser(registerUserPayload);
+					});
+
+					describe('Login Fail', () => {
+						it('should fail with 401 Unauthorized', () => {
+							return request(httpApp.getHttpServer())
+								.post('/v1/sso/login')
+								.send({email: registerUserPayload.email, password: registerUserPayload.password.toUpperCase()})
+								.set('Accept', 'application/json')
+								.set('Content-Type', 'application/json')
+								.expect('Content-Type', /json/)
+								.expect(401);
+						});
+					});
+					describe('Login Success', () => {
+						it('should respond 200 with jwtAccessToken', (done) => {
+							return request(httpApp.getHttpServer())
+								.post('/v1/sso/login')
+								.send({email: registerUserPayload.email, password: registerUserPayload.password})
+								.expect('Content-Type', /json/)
+								.expect((res) => 'jwtAccessToken' in res.body)
+								.expect(200)
+								.end((err, res) => {
+									if (err) return done(err);
+									return done();
+								});
+						});
+					});
+				});
+			});
+
+
+		});
+
+
+		describe('User Info', () => {
+			it('should fail with 401 Unauthorized', async () => {
+				await request(httpApp.getHttpServer())
+					.get('/v1/sso/info')
 					.set('Accept', 'application/json')
 					.expect('Content-Type', /json/)
-					.expect(401)
-					.end((err, res) => {
-						console.log(res.body);
-						if (err) { return done(err); }
-						return done();
-					});
+					.expect(401);
 			});
 		});
 
-		describe('Login.Success', () => {
-			it('should respond with jwtAccessToken', () => {
-				return request(httpApp.getHttpServer())
-					.post('/v1/sso/login')
-					.send({email: 'jakeihasz@minnich-mfg.com', password: 'jake.ihasz'})
-					.set('Accept', 'application/json')
-					.expect('Content-Type', /json/)
-					.expect((res) => 'jwtAccessToken' in res.body)
-					.expect(200);
-			});
-		});
+
 	});
+
 
 });

@@ -5,7 +5,7 @@ import { TypegooseModule } from 'nestjs-typegoose';
 
 @Module({
 	imports: [
-		TypegooseModule.forRoot("put url here",
+		TypegooseModule.forRoot("url",
 			{
 				keepAlive: true,
 				useNewUrlParser: true,
