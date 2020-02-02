@@ -1,3 +1,4 @@
+import { PasswordToken } from '@mm-mono/api/models/password-token.model';
 import { User, } from '@mm-mono/api/models/user.model';
 import { IUser } from '@mm-mono/api/objects/IUser';
 import { HttpStatus, INestApplication, Injectable } from '@nestjs/common';
@@ -25,29 +26,23 @@ export class CleanupService {
 const registerUserPayload: IUser = {
 	email: 'testuser@test.com',
 	password: 'Test',
-	company: 'Test',
-	firstName: 'Test',
-	lastName: 'Test',
-	middleName: 'Test',
 	// @ts-ignore
 	passwordConfirm: 'Test',
-	phone1: '4237878243783'
 };
-console.log(JSON.stringify(registerUserPayload));
 
 describe('SSO Module', () => {
 	let ssoModule: TestingModule;
 	let httpApp: INestApplication;
 	// let service: SsoService;
 	let cleanupService: CleanupService;
-	let user: IUser;
 
 	beforeAll(async () => {
 		ssoModule = await Test.createTestingModule({
 
 			imports: [
 				DefaultTestingModule,
-				TypegooseModule.forFeature([User]),
+				TypegooseModule.forFeature([User,PasswordToken]), // breaks test, calls twice
+				// TypegooseModule.forFeature([User]), // doesnt break test
 			],
 			controllers: [
 				SsoController

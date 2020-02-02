@@ -18,8 +18,6 @@ export class SsoController {
 	@HttpCode(200)
 	async login(@Body() loginDto): Promise<IUser> {
 		return await this.ssoService.login(loginDto);
-
 	}
-
 }
 
